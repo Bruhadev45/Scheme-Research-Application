@@ -1,9 +1,11 @@
 streamlit
 langchain
-openai
-faiss-cpu
-tiktoken
-unstructured
-python-dotenv
-requests
+langchain-community
+langchain-openai
 PyPDF2
+openai
+unstructured[html]
+tiktoken
+faiss-cpu
+python-magic # Recommended for UnstructuredLoader on Linux/macOS
+python-magic-bin # For Windows users (if python-magic fails)
