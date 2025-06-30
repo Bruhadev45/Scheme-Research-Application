@@ -1,4 +1,4 @@
-```markdown
+
 # 🧾 Automated Scheme Research Tool
 
 This is a Streamlit-based application that lets users research Indian government schemes by uploading PDF/TXT files or pasting article URLs. It uses OpenAI's GPT-3.5 model, FAISS indexing, and LangChain to generate answers and summaries from the document content.
@@ -151,7 +151,4 @@ Part of the **Haqdarshak Assignment Submission**
 
 For academic/demonstration use only.
 
-```
-
----
 
