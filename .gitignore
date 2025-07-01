@@ -11,6 +11,7 @@ faiss_store_openai/
 # Environments
 venv/
 .env
+.config
 
 # Editor
 .vscode/
