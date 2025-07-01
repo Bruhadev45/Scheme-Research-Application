@@ -11,7 +11,7 @@ faiss_store_openai/
 # Environments
 venv/
 .env
-.config
+
 
 # Editor
 .vscode/
@@ -20,3 +20,5 @@ venv/
 
 # Streamlit cache
 .streamlit/
+
+.config
