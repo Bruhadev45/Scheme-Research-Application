@@ -10,10 +10,8 @@ from langchain_openai import ChatOpenAI
 from langchain.schema import Document
 
 import streamlit as st
-import openai
 
-# Access OpenAI key
-openai.api_key = st.secrets["openai"]["api_key"]
+openai_key = st.secrets["api_keys"]["openai_key"]
 
 # Load OpenAI API key from a .config file
 def load_api_key():
