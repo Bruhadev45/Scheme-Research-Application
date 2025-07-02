@@ -20,5 +20,5 @@ venv/
 
 # Streamlit cache
 .streamlit/
-
+.streamlit/secrets.toml
 .config

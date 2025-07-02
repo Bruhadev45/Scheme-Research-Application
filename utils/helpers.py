@@ -9,6 +9,12 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import ChatOpenAI
 from langchain.schema import Document
 
+import streamlit as st
+import openai
+
+# Access OpenAI key
+openai.api_key = st.secrets["openai"]["api_key"]
+
 # Load OpenAI API key from a .config file
 def load_api_key():
     config = configparser.ConfigParser()
