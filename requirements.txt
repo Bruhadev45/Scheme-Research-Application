@@ -7,5 +7,3 @@ openai
 unstructured[html]
 tiktoken
 faiss-cpu
-python-magic # Recommended for UnstructuredLoader on Linux/macOS
-python-magic-bin # For Windows users (if python-magic fails)
