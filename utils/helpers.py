@@ -14,9 +14,8 @@ import openai
 
 try:
     openai.api_key = st.secrets["api_keys"]["openai_key"]
-except KeyError:
-    st.error("🚨 Missing [api_keys] or openai_key in Streamlit Cloud Secrets.")
-
+except Exception as e:
+    st.error(f"🚨 Processing error: {e}")
 
 # Load OpenAI API key from a .config file
 def load_api_key():
