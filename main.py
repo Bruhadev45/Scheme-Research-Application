@@ -1,3 +1,5 @@
+# main.py
+
 import streamlit as st
 from utils.helpers import (
     load_api_key, load_and_split_documents,
@@ -10,16 +12,7 @@ import os
 import shutil
 import logging
 
-import streamlit as st
-import openai
-
-try:
-    openai.api_key = st.secrets["api_keys"]["openai_key"]
-except Exception as e:
-    st.error(f"🚨 Processing error: {e}")
-
-
-# Set up logging to a file
+# Setup logging
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
     filename="logs/app.log",
@@ -27,10 +20,10 @@ logging.basicConfig(
     format="%(asctime)s — %(levelname)s — %(message)s"
 )
 
-# Fix for OpenMP errors on some systems
+# Fix for OpenMP errors
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# Generate structured summary including Required Documents with emojis
+# Generate structured summary
 def generate_summary(text, api_key):
     prompt = f"""
 Summarize the scheme information into the following four key sections. If a section is not mentioned in the text, write "**Not mentioned**".
@@ -53,7 +46,7 @@ Content:
         logging.error(f"Summary generation failed: {e}")
         return f"Summary generation failed: {e}"
 
-# Main app logic
+# Main app
 def main():
     st.set_page_config(page_title="Scheme Research Tool", layout="centered")
     st.title("🧾 Automated Scheme Research Tool")
@@ -65,7 +58,6 @@ def main():
     if "summary" not in st.session_state:
         st.session_state.summary = ""
 
-    # Sidebar inputs
     with st.sidebar:
         st.header("📂 Input")
         input_mode = st.radio("Choose Input Type", ["Enter URLs", "Upload Files"])
@@ -78,11 +70,9 @@ def main():
         process_btn = st.button("📥 Process")
         clear_btn = st.button("♻️ Clear All")
 
-    # Text input for user query
     query = st.text_input("💬 Ask a question:")
     submit_btn = st.button("🤖 Get Answer")
 
-    # Clear session and FAISS store
     if clear_btn:
         st.session_state.vectorstore = None
         st.session_state.processed = False
@@ -92,10 +82,13 @@ def main():
             logging.info("Cleared FAISS index and session state.")
         st.rerun()
 
-    # Process uploaded files or entered URLs
     if process_btn:
         try:
             api_key = load_api_key()
+            if not api_key:
+                st.error("❌ OpenAI API key not found.")
+                return
+
             openai.api_key = api_key
             all_docs = []
 
@@ -125,7 +118,6 @@ def main():
                     logging.info("FAISS index created successfully.")
                     st.success("✅ Documents processed successfully.")
 
-                    # Generate structured summary after processing
                     with st.spinner("📝 Generating structured summary..."):
                         try:
                             combined_text = "\n\n".join([doc.page_content for doc in all_docs[:10]])
@@ -143,15 +135,17 @@ def main():
             logging.error(f"Processing error: {e}")
             st.error(f"🚨 Processing error: {e}")
 
-    # Show structured summary if available
     if st.session_state.summary:
         st.subheader("🧾 Scheme Summary")
         st.markdown(st.session_state.summary)
 
-    # Handle query and answer generation
     if submit_btn:
         try:
             api_key = load_api_key()
+            if not api_key:
+                st.error("❌ OpenAI API key not found.")
+                return
+
             openai.api_key = api_key
 
             if not query.strip():
@@ -178,6 +172,5 @@ def main():
             logging.error(f"Answering error: {e}")
             st.error(f"🚨 Answering error: {e}")
 
-# Entry point
 if __name__ == "__main__":
     main()
