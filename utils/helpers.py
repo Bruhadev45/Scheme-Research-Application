@@ -9,13 +9,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_openai import ChatOpenAI
 from langchain.schema import Document
 
-import streamlit as st
-import openai
 
-try:
-    openai.api_key = st.secrets["api_keys"]["openai_key"]
-except Exception as e:
-    st.error(f"🚨 Processing error: {e}")
 
 # Load OpenAI API key from a .config file
 def load_api_key():

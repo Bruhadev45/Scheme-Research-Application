@@ -10,7 +10,13 @@ import os
 import shutil
 import logging
 
+import streamlit as st
+import openai
 
+try:
+    openai.api_key = st.secrets["api_keys"]["openai_key"]
+except Exception as e:
+    st.error(f"🚨 Processing error: {e}")
 
 
 # Set up logging to a file
