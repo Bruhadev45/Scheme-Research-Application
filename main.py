@@ -10,6 +10,11 @@ import os
 import shutil
 import logging
 
+import streamlit as st
+
+openai_key = st.secrets["api_keys"]["openai_key"]
+
+
 # Set up logging to a file
 os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
