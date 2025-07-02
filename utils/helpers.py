@@ -57,7 +57,7 @@ def load_and_split_documents(url_list=None, file_content=None, file_name=None):
 
         # If documents exist, split them into smaller chunks for better embedding and retrieval
         if docs:
-            splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
+            splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=150)
             return splitter.split_documents(docs)
 
         return []
@@ -81,7 +81,7 @@ def create_or_load_faiss_index(docs, embeddings, index_path="faiss_store_openai"
         return None
 
 # Query the LLM using the vectorstore and return both the answer and the sources used
-def query_llm(vectorstore, query, model_name="gpt-3.5-turbo", k=4):
+def query_llm(vectorstore, query, model_name="gpt-3.5-turbo", k=3):
     try:
         # Retrieve top-k relevant chunks using vector similarity
         relevant_docs = vectorstore.similarity_search(query, k=k)

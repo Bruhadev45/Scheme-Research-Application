@@ -1,4 +1,3 @@
-# Import necessary libraries and helper functions
 import streamlit as st
 from utils.helpers import (
     load_api_key, load_and_split_documents,
@@ -9,141 +8,167 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 import openai
 import os
 import shutil
+import logging
 
-# Fix for potential OpenMP runtime error on some machines
+# Set up logging to a file
+os.makedirs("logs", exist_ok=True)
+logging.basicConfig(
+    filename="logs/app.log",
+    level=logging.INFO,
+    format="%(asctime)s — %(levelname)s — %(message)s"
+)
+
+# Fix for OpenMP errors on some systems
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# Function to generate a brief summary from the LLM's full answer
+# Generate structured summary including Required Documents with emojis
 def generate_summary(text, api_key):
     prompt = f"""
-Summarize the following answer into 3–4 bullet points in plain English.
+Summarize the scheme information into the following four key sections. If a section is not mentioned in the text, write "**Not mentioned**".
 
+Format each section using the following headers:
+- 🏆 Scheme Benefits
+- 📝 Application Process
+- ✅ Eligibility
+- 📄 Documents Required
+
+Use bullet points under each section.
+
+Content:
 {text}
 """
     try:
         llm = ChatOpenAI(temperature=0.3, model_name="gpt-3.5-turbo", openai_api_key=api_key)
         return llm.predict(prompt)
     except Exception as e:
+        logging.error(f"Summary generation failed: {e}")
         return f"Summary generation failed: {e}"
 
-# Main Streamlit app function
+# Main app logic
 def main():
-    # Set basic app layout and title
-    st.set_page_config(page_title="Automated Scheme Research Tool", layout="centered")
+    st.set_page_config(page_title="Scheme Research Tool", layout="centered")
     st.title("🧾 Automated Scheme Research Tool")
 
-    # Initialize session state variables to persist across interactions
     if "vectorstore" not in st.session_state:
         st.session_state.vectorstore = None
     if "processed" not in st.session_state:
         st.session_state.processed = False
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    if "summary" not in st.session_state:
+        st.session_state.summary = ""
 
-    # Sidebar section for input configuration
+    # Sidebar inputs
     with st.sidebar:
         st.header("📂 Input")
-        input_mode = st.radio("Choose Input Type", ["Enter URLs", "Upload File"])
-        urls_input = st.text_area("Paste URLs (one per line):") if input_mode == "Enter URLs" else ""
-        uploaded_file = st.file_uploader("Upload a PDF or TXT file") if input_mode == "Upload File" else None
-        process_btn = st.button("📥 Process")    # Process the input
-        clear_btn = st.button("♻️ Clear All")    # Reset everything
+        input_mode = st.radio("Choose Input Type", ["Enter URLs", "Upload Files"])
 
-    # Main input box for user query
+        if input_mode == "Enter URLs":
+            urls_input = st.text_area("Paste one or more scheme URLs:", height=200)
+        else:
+            uploaded_files = st.file_uploader("Upload multiple PDF or TXT files", type=["pdf", "txt"], accept_multiple_files=True)
+
+        process_btn = st.button("📥 Process")
+        clear_btn = st.button("♻️ Clear All")
+
+    # Text input for user query
     query = st.text_input("💬 Ask a question:")
     submit_btn = st.button("🤖 Get Answer")
 
-    # Clear/reset everything on button click
+    # Clear session and FAISS store
     if clear_btn:
         st.session_state.vectorstore = None
         st.session_state.processed = False
-        st.session_state.chat_history = []
+        st.session_state.summary = ""
         if os.path.exists("faiss_store_openai"):
             shutil.rmtree("faiss_store_openai")
+            logging.info("Cleared FAISS index and session state.")
         st.rerun()
 
-    # Processing logic for either uploaded file or URL input
+    # Process uploaded files or entered URLs
     if process_btn:
         try:
             api_key = load_api_key()
             openai.api_key = api_key
+            all_docs = []
 
-            # Reset previous processing results
-            st.session_state.vectorstore = None
-            st.session_state.processed = False
-
-            # Delete previous FAISS index if it exists
             if os.path.exists("faiss_store_openai"):
                 shutil.rmtree("faiss_store_openai")
 
-            # Handle file upload processing
-            if input_mode == "Upload File" and uploaded_file:
-                raw_text = extract_text_from_file(uploaded_file)
-                cleaned = clean_text(raw_text)
-                if not cleaned.strip():
-                    st.error("No readable content found in the file.")
-                else:
-                    with st.spinner("🔄 Processing uploaded file..."):
-                        docs = load_and_split_documents(file_content=cleaned, file_name=uploaded_file.name)
-                        if docs:
-                            embeddings = OpenAIEmbeddings(openai_api_key=api_key)
-                            vs = create_or_load_faiss_index(docs, embeddings)
-                            st.session_state.vectorstore = vs
-                            st.session_state.processed = True
-                        else:
-                            st.error("Failed to process file content.")
+            with st.spinner("🔄 Extracting and indexing documents..."):
+                if input_mode == "Upload Files" and uploaded_files:
+                    for file in uploaded_files:
+                        raw_text = extract_text_from_file(file)
+                        cleaned = clean_text(raw_text)
+                        docs = load_and_split_documents(file_content=cleaned, file_name=file.name)
+                        all_docs.extend(docs)
+                        logging.info(f"Processed uploaded file: {file.name}")
 
-            # Handle URL input processing
-            elif input_mode == "Enter URLs":
-                url_list = [u.strip() for u in urls_input.split("\n") if u.strip()]
-                if not url_list:
-                    st.warning("Please enter at least one valid URL.")
+                elif input_mode == "Enter URLs":
+                    url_list = [u.strip() for u in urls_input.split("\n") if u.strip()]
+                    docs = load_and_split_documents(url_list=url_list)
+                    all_docs.extend(docs)
+                    logging.info(f"Processed URLs: {url_list}")
+
+                if all_docs:
+                    embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+                    vs = create_or_load_faiss_index(all_docs, embeddings)
+                    st.session_state.vectorstore = vs
+                    st.session_state.processed = True
+                    logging.info("FAISS index created successfully.")
+                    st.success("✅ Documents processed successfully.")
+
+                    # Generate structured summary after processing
+                    with st.spinner("📝 Generating structured summary..."):
+                        try:
+                            combined_text = "\n\n".join([doc.page_content for doc in all_docs[:10]])
+                            summary = generate_summary(combined_text, api_key)
+                            st.session_state.summary = summary
+                            logging.info("Structured summary generated successfully.")
+                        except Exception as e:
+                            st.session_state.summary = f"Summary generation failed: {e}"
+                            logging.error(f"Summary generation after processing failed: {e}")
                 else:
-                    with st.spinner("🔄 Processing URLs..."):
-                        docs = load_and_split_documents(url_list=url_list)
-                        if docs:
-                            embeddings = OpenAIEmbeddings(openai_api_key=api_key)
-                            vs = create_or_load_faiss_index(docs, embeddings)
-                            st.session_state.vectorstore = vs
-                            st.session_state.processed = True
-                        else:
-                            st.error("Could not extract useful content from the URLs.")
+                    logging.warning("No valid documents found to process.")
+                    st.error("❌ No valid content found to process.")
+
         except Exception as e:
-            st.error(f"Processing error: {e}")
+            logging.error(f"Processing error: {e}")
+            st.error(f"🚨 Processing error: {e}")
 
-    # Handle user query after data has been processed
+    # Show structured summary if available
+    if st.session_state.summary:
+        st.subheader("🧾 Scheme Summary")
+        st.markdown(st.session_state.summary)
+
+    # Handle query and answer generation
     if submit_btn:
         try:
             api_key = load_api_key()
             openai.api_key = api_key
 
             if not query.strip():
-                st.warning("Enter a question to ask.")
+                st.warning("⚠️ Please enter a question.")
             elif not st.session_state.vectorstore:
-                st.warning("Process a file or URLs first.")
+                st.warning("⚠️ Process documents before asking questions.")
             else:
                 with st.spinner("🤖 Generating answer..."):
                     answer, sources = query_llm(
                         st.session_state.vectorstore, query, model_name="gpt-3.5-turbo", k=5
                     )
-                    summary = generate_summary(answer, api_key)
-                    # Save Q&A + summary and sources to chat history
-                    st.session_state.chat_history.append((query, answer, summary, sources))
+
+                    st.subheader("🔎 Answer")
+                    st.markdown(answer)
+
+                    if sources:
+                        st.subheader("📎 Sources")
+                        for src in sorted(set(sources)):
+                            st.markdown(f"- [{src}]({src})")
+
+                    logging.info(f"Query answered: {query}")
+
         except Exception as e:
-            st.error(f"Answering error: {e}")
+            logging.error(f"Answering error: {e}")
+            st.error(f"🚨 Answering error: {e}")
 
-    # Display previous questions, answers, summaries and sources
-    if st.session_state.chat_history:
-        st.subheader("Chat History")
-        for i, (q, a, s, srcs) in enumerate(st.session_state.chat_history, 1):
-            with st.expander(f"Q{i}: {q}", expanded=True):
-                st.markdown(f"**Answer:**\n\n{a}")
-                st.markdown(f"**Summary:**\n\n{s}")
-                if srcs:
-                    st.markdown("**Sources:**")
-                    for src in sorted(set(srcs)):
-                        st.markdown(f"- [{src}]({src})")
-
-# Run the app
+# Entry point
 if __name__ == "__main__":
     main()
