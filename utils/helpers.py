@@ -10,8 +10,13 @@ from langchain_openai import ChatOpenAI
 from langchain.schema import Document
 
 import streamlit as st
+import openai
 
-openai_key = st.secrets["api_keys"]["openai_key"]
+try:
+    openai.api_key = st.secrets["api_keys"]["openai_key"]
+except KeyError:
+    st.error("🚨 Missing [api_keys] or openai_key in Streamlit Cloud Secrets.")
+
 
 # Load OpenAI API key from a .config file
 def load_api_key():
